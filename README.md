@@ -1,6 +1,6 @@
 # ADV Log
 
-Mobile-first Honda ADV150 maintenance tracker. The current UI runs in local demo mode and persists bike settings, intervals, and records in browser storage. The Supabase-ready schema and RLS policies are in [`supabase/migrations/001_initial_schema.sql`](supabase/migrations/001_initial_schema.sql).
+Mobile-first Honda ADV150 maintenance tracker with Supabase email/password authentication, password reset, synced bike settings, intervals, and maintenance records. The schema and RLS policies are in [`supabase/migrations/001_initial_schema.sql`](supabase/migrations/001_initial_schema.sql).
 
 ## Run locally
 
