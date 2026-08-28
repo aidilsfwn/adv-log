@@ -3,8 +3,8 @@
 ## Phase 1 — Foundation
 
 - Scaffold React + Vite + TypeScript.
-- Add shadcn/ui, Tailwind, Supabase client, routing, and PWA support.
-- Configure static-host deployment and environment variables.
+- Add shadcn/ui, Tailwind, and Supabase client.
+- Configure Vercel deployment and environment variables.
 
 ## Phase 2 — Database and seed data
 
@@ -26,9 +26,8 @@
 - Build log/edit/delete maintenance forms and history.
 - Add configurable interval editing while preserving one interval per item.
 
-## Phase 5 — PWA and release
+## Phase 5 — Release
 
-- Add installable manifest, icons, cached shell, and connectivity state.
 - Test at 320px, on iPhone Safari, and on MacBook.
 - Run typecheck, lint, automated tests, and production build.
 - Configure custom domain/subdomain and Supabase redirect URLs.
