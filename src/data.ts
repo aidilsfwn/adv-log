@@ -14,7 +14,7 @@ export async function loadCloudData(userId: string) {
     if (seeded.error) throw seeded.error
   }
   const [itemsResult, recordsResult] = await Promise.all([
-    supabase.from('maintenance_items').select('*').eq('motorcycle_id', motorcycle.id).eq('active', true).order('sort_order'),
+    supabase.from('maintenance_items').select('*').eq('motorcycle_id', motorcycle.id).order('sort_order'),
     supabase.from('maintenance_records').select('*').eq('motorcycle_id', motorcycle.id).order('performed_date', { ascending: false }),
   ])
   if (itemsResult.error) throw itemsResult.error
@@ -33,4 +33,37 @@ export async function saveRecord(userId: string, motorcycleId: string, record: M
 }
 export async function deleteRecord(id: string) { if (supabase) { const { error } = await supabase.from('maintenance_records').delete().eq('id', id); if (error) throw error } }
 export async function saveMotorcycle(userId: string, motorcycleId: string, bike: Motorcycle) { if (supabase) { const { error } = await supabase.from('motorcycles').update({ name: bike.name, make: bike.make, model: bike.model, start_date: bike.startDate || null, current_odometer_km: bike.currentOdometerKm }).eq('id', motorcycleId).eq('user_id', userId); if (error) throw error } }
-export async function saveItem(id: string, item: MaintenanceItem) { if (supabase) { const { error } = await supabase.from('maintenance_items').update({ name: item.name, interval_months: item.intervalMonths ?? null, interval_km: item.intervalKm ?? null }).eq('id', id); if (error) throw error } }
+export async function saveItem(id: string, item: MaintenanceItem) {
+  if (!supabase) throw new Error('Supabase is not configured.')
+  const { error } = await supabase.from('maintenance_items').update({
+    name: item.name,
+    basis: item.basis,
+    interval_months: item.basis === 'time' ? item.intervalMonths : null,
+    interval_km: item.basis === 'distance' ? item.intervalKm : null,
+    active: item.active,
+    sort_order: item.sortOrder,
+  }).eq('id', id)
+  if (error) throw error
+}
+
+export async function createItem(userId: string, motorcycleId: string, item: Omit<MaintenanceItem, 'id'>) {
+  if (!supabase) throw new Error('Supabase is not configured.')
+  const { data, error } = await supabase.from('maintenance_items').insert({
+    user_id: userId,
+    motorcycle_id: motorcycleId,
+    name: item.name,
+    basis: item.basis,
+    interval_months: item.basis === 'time' ? item.intervalMonths : null,
+    interval_km: item.basis === 'distance' ? item.intervalKm : null,
+    sort_order: item.sortOrder,
+    active: true,
+  }).select().single()
+  if (error) throw error
+  return { id: data.id, name: data.name, basis: data.basis, intervalMonths: data.interval_months ?? undefined, intervalKm: data.interval_km ?? undefined, sortOrder: data.sort_order, active: data.active } as MaintenanceItem
+}
+
+export async function removeItem(id: string) {
+  if (!supabase) throw new Error('Supabase is not configured.')
+  const { error } = await supabase.from('maintenance_items').update({ active: false }).eq('id', id)
+  if (error) throw error
+}
