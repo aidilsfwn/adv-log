@@ -32,5 +32,5 @@ export async function saveRecord(userId: string, motorcycleId: string, record: M
   if (error) throw error
 }
 export async function deleteRecord(id: string) { if (supabase) { const { error } = await supabase.from('maintenance_records').delete().eq('id', id); if (error) throw error } }
-export async function saveMotorcycle(userId: string, motorcycleId: string, bike: Motorcycle) { if (supabase) { const { error } = await supabase.from('motorcycles').update({ name: bike.name, start_date: bike.startDate || null, current_odometer_km: bike.currentOdometerKm }).eq('id', motorcycleId).eq('user_id', userId); if (error) throw error } }
+export async function saveMotorcycle(userId: string, motorcycleId: string, bike: Motorcycle) { if (supabase) { const { error } = await supabase.from('motorcycles').update({ name: bike.name, make: bike.make, model: bike.model, start_date: bike.startDate || null, current_odometer_km: bike.currentOdometerKm }).eq('id', motorcycleId).eq('user_id', userId); if (error) throw error } }
 export async function saveItem(id: string, item: MaintenanceItem) { if (supabase) { const { error } = await supabase.from('maintenance_items').update({ name: item.name, interval_months: item.intervalMonths ?? null, interval_km: item.intervalKm ?? null }).eq('id', id); if (error) throw error } }
