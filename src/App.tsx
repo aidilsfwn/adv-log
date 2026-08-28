@@ -1,142 +1,1500 @@
-import { useEffect, useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
-import type { Session } from '@supabase/supabase-js'
-import { ArrowRight, Bike, CalendarDays, Check, CheckCircle2, ChevronRight, CircleGauge, Clock3, Ellipsis, Eye, Gauge, History as HistoryIcon, LogOut, Milestone, Pencil, Plus, Settings2, ShieldCheck, Trash2, Wrench, X } from 'lucide-react'
-import { toast, Toaster } from 'sonner'
-import './App.css'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Separator } from '@/components/ui/separator'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Textarea } from '@/components/ui/textarea'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { createItem, deleteRecord, loadCloudData, removeItem, saveItem, saveMotorcycle, saveRecord } from './data'
-import { formatMoney, getStatus, type Basis, type MaintenanceItem, type MaintenanceRecord, type Motorcycle } from './domain'
-import { supabase } from './lib/supabase'
+import { useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
+import type { Session } from "@supabase/supabase-js";
+import {
+  ArrowRight,
+  Bike,
+  Calendar as CalendarIcon,
+  Check,
+  CheckCircle2,
+  ChevronRight,
+  CircleGauge,
+  Clock3,
+  Ellipsis,
+  Eye,
+  Gauge,
+  History as HistoryIcon,
+  LogOut,
+  Milestone,
+  Pencil,
+  Plus,
+  Settings2,
+  ShieldCheck,
+  Trash2,
+  Wrench,
+  X,
+} from "lucide-react";
+import { toast, Toaster } from "sonner";
+import "./App.css";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  createItem,
+  deleteRecord,
+  loadCloudData,
+  removeItem,
+  saveItem,
+  saveMotorcycle,
+  saveRecord,
+} from "./data";
+import {
+  formatMoney,
+  getStatus,
+  type Basis,
+  type MaintenanceItem,
+  type MaintenanceRecord,
+  type Motorcycle,
+} from "./domain";
+import { supabase } from "./lib/supabase";
 
-const today = new Date().toISOString().slice(0, 10)
-type View = 'overview' | 'history' | 'settings'
-type LogTarget = { itemId: string; record?: MaintenanceRecord }
+const today = new Date().toISOString().slice(0, 10);
+type View = "overview" | "history" | "settings";
+type LogTarget = { itemId: string; record?: MaintenanceRecord };
 const statusMeta = {
-  overdue: { label: 'Overdue', className: 'status-overdue' }, due: { label: 'Due now', className: 'status-due' }, due_soon: { label: 'Due soon', className: 'status-soon' }, up_to_date: { label: 'Up to date', className: 'status-good' }, condition_based: { label: 'Inspect', className: 'status-check' }, needs_baseline: { label: 'Set baseline', className: 'status-muted' },
-} as const
+  overdue: { label: "Overdue", className: "status-overdue" },
+  due: { label: "Due now", className: "status-due" },
+  due_soon: { label: "Due soon", className: "status-soon" },
+  up_to_date: { label: "Up to date", className: "status-good" },
+  condition_based: { label: "Inspect", className: "status-check" },
+  needs_baseline: { label: "Set baseline", className: "status-muted" },
+} as const;
 
 function App() {
-  const [session, setSession] = useState<Session | null>(null), [authReady, setAuthReady] = useState(!supabase)
-  const [bike, setBike] = useState<Motorcycle | null>(null), [items, setItems] = useState<MaintenanceItem[]>([]), [records, setRecords] = useState<MaintenanceRecord[]>([]), [motorcycleId, setMotorcycleId] = useState(''), [dataUserId, setDataUserId] = useState('')
-  const [view, setView] = useState<View>('overview'), [logTarget, setLogTarget] = useState<LogTarget | null>(null), [deleteTarget, setDeleteTarget] = useState<MaintenanceRecord | null>(null)
+  const [session, setSession] = useState<Session | null>(null),
+    [authReady, setAuthReady] = useState(!supabase);
+  const [bike, setBike] = useState<Motorcycle | null>(null),
+    [items, setItems] = useState<MaintenanceItem[]>([]),
+    [records, setRecords] = useState<MaintenanceRecord[]>([]),
+    [motorcycleId, setMotorcycleId] = useState(""),
+    [dataUserId, setDataUserId] = useState("");
+  const [view, setView] = useState<View>("overview"),
+    [logTarget, setLogTarget] = useState<LogTarget | null>(null),
+    [deleteTarget, setDeleteTarget] = useState<MaintenanceRecord | null>(null);
   useEffect(() => {
-    if (!supabase) return
-    supabase.auth.getSession().then(({ data }) => { setSession(data.session); setAuthReady(true) })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, next) => setSession(next))
-    return () => subscription.unsubscribe()
-  }, [])
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setAuthReady(true);
+    });
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
+    return () => subscription.unsubscribe();
+  }, []);
   useEffect(() => {
-    if (!session) return
-    let active = true
-    loadCloudData(session.user.id).then((data) => { if (!active) return; setBike(data.motorcycle); setItems(data.items); setRecords(data.records); setMotorcycleId(data.motorcycle.id); setDataUserId(session.user.id) }).catch((error: Error) => toast.error('Could not load your garage', { description: error.message }))
-    return () => { active = false }
-  }, [session])
-  const statuses = useMemo(() => bike ? items.filter((item) => item.active).map((item) => ({ item, result: getStatus(item, records, bike, today) })) : [], [items, records, bike])
+    if (!session) return;
+    let active = true;
+    loadCloudData(session.user.id)
+      .then((data) => {
+        if (!active) return;
+        setBike(data.motorcycle);
+        setItems(data.items);
+        setRecords(data.records);
+        setMotorcycleId(data.motorcycle.id);
+        setDataUserId(session.user.id);
+      })
+      .catch((error: Error) =>
+        toast.error("Could not load your garage", {
+          description: error.message,
+        }),
+      );
+    return () => {
+      active = false;
+    };
+  }, [session]);
+  const statuses = useMemo(
+    () =>
+      bike
+        ? items
+            .filter((item) => item.active)
+            .map((item) => ({
+              item,
+              result: getStatus(item, records, bike, today),
+            }))
+        : [],
+    [items, records, bike],
+  );
   async function handleRecordSave(record: MaintenanceRecord) {
-    if (!session || !motorcycleId) return
-    await saveRecord(session.user.id, motorcycleId, record)
-    setRecords((current) => [record, ...current.filter((entry) => entry.id !== record.id)]); setLogTarget(null)
-    toast.success(logTarget?.record ? 'Maintenance entry updated' : 'Maintenance logged', { description: 'Your changes are saved to Supabase.' })
+    if (!session || !motorcycleId) return;
+    await saveRecord(session.user.id, motorcycleId, record);
+    setRecords((current) => [
+      record,
+      ...current.filter((entry) => entry.id !== record.id),
+    ]);
+    setLogTarget(null);
+    toast.success(
+      logTarget?.record ? "Maintenance entry updated" : "Maintenance logged",
+      { description: "Your changes are saved to Supabase." },
+    );
   }
   async function handleDelete() {
-    if (!deleteTarget) return
-    try { await deleteRecord(deleteTarget.id); setRecords((current) => current.filter((record) => record.id !== deleteTarget.id)); toast.success('Entry deleted') }
-    catch (error) { toast.error('Could not delete entry', { description: error instanceof Error ? error.message : 'Try again.' }) }
-    finally { setDeleteTarget(null) }
-  }
-  if (!authReady) return <LoadingScreen />
-  if (!supabase) return <ConfigurationScreen />
-  if (!session) return <AuthScreen />
-  if (!bike || dataUserId !== session.user.id) return <LoadingScreen />
-  const urgent = statuses.filter(({ result }) => ['overdue', 'due', 'due_soon', 'needs_baseline'].includes(result.status))
-  const initials = session.user.email?.slice(0, 2).toUpperCase() ?? 'AL'
-  return <TooltipProvider><div className="app-shell">
-    <header className="topbar"><div className="topbar-inner"><Brand /><DropdownMenu><DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="account-button" aria-label="Account menu" />}><Avatar><AvatarFallback>{initials}</AvatarFallback></Avatar></DropdownMenuTrigger><DropdownMenuContent align="end" className="account-menu"><div className="account-email">Signed in as<br /><strong>{session.user.email}</strong></div><DropdownMenuSeparator /><DropdownMenuItem onClick={() => supabase?.auth.signOut()}><LogOut /> Sign out</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div></header>
-    <main className="main-content"><BikeHero bike={bike} onEdit={() => setView('settings')} /><NextCheckpoint row={urgent[0]} onLog={(itemId) => setLogTarget({ itemId })} />
-      <Tabs value={view} onValueChange={(next) => setView(next as View)}><div className="nav-row"><TabsList><TabsTrigger value="overview"><CircleGauge /> <span>Route</span></TabsTrigger><TabsTrigger value="history"><HistoryIcon /> <span>History</span><span className="tab-count">{records.length}</span></TabsTrigger><TabsTrigger value="settings"><Settings2 /> <span>Bike</span></TabsTrigger></TabsList></div>
-        <TabsContent value="overview"><Overview statuses={statuses} urgent={urgent} onLog={(itemId) => setLogTarget({ itemId })} /></TabsContent>
-        <TabsContent value="history"><HistoryView records={records} items={items} onAdd={() => setLogTarget({ itemId: items[0]?.id ?? '' })} onEdit={(record) => setLogTarget({ itemId: record.itemId, record })} onDelete={setDeleteTarget} /></TabsContent>
-        <TabsContent value="settings"><SettingsView bike={bike} items={items} userId={session.user.id} motorcycleId={motorcycleId} onBikeSaved={setBike} onItemsChanged={setItems} /></TabsContent>
-      </Tabs></main>
-    {logTarget && <LogDialog open target={logTarget} items={items.filter((item) => item.active)} bike={bike} onOpenChange={(open) => !open && setLogTarget(null)} onSave={handleRecordSave} />}
-    <DeleteDialog record={deleteTarget} item={items.find((item) => item.id === deleteTarget?.itemId)} onOpenChange={(open) => !open && setDeleteTarget(null)} onConfirm={handleDelete} /><Toaster position="bottom-center" richColors closeButton />
-  </div></TooltipProvider>
-}
-
-function Brand() { return <div className="brand"><div className="brand-mark"><Wrench /></div><div><strong>ADV Log</strong><span>Maintenance, made simple</span></div></div> }
-function LoadingScreen() { return <div className="loading-screen"><div className="loading-card"><Brand /><div className="loading-stack"><Skeleton className="h-7 w-52" /><Skeleton className="h-4 w-72 max-w-full" /><Skeleton className="h-32 w-full" /></div></div></div> }
-function ConfigurationScreen() { return <div className="auth-screen"><Card className="auth-card"><CardHeader><div className="brand-mark"><Wrench /></div><CardTitle>Connect Supabase</CardTitle><CardDescription>Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to start ADV Log.</CardDescription></CardHeader></Card></div> }
-function AuthScreen() {
-  const [email, setEmail] = useState(''), [password, setPassword] = useState(''), [reset, setReset] = useState(false), [submitting, setSubmitting] = useState(false)
-  async function submit(event: FormEvent) { event.preventDefault(); if (!supabase) return; setSubmitting(true); if (reset) { const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin }); if (error) toast.error('Could not send reset email', { description: error.message }); else toast.success('Check your inbox', { description: 'Password reset instructions are on the way.' }) } else { const { error } = await supabase.auth.signInWithPassword({ email, password }); if (error) toast.error('Could not sign in', { description: error.message }) } setSubmitting(false) }
-  return <TooltipProvider><div className="auth-screen"><div className="auth-layout"><div className="auth-story"><Brand /><div><p className="auth-kicker">Private maintenance log</p><h1>Know what’s due.<br />Keep riding.</h1><p>A focused record of your service history, mileage, and next maintenance.</p></div><div className="auth-proof"><ShieldCheck /><span><strong>Private by default</strong>Your records are protected by your account.</span></div></div><Card className="auth-card"><CardHeader><CardTitle>{reset ? 'Reset your password' : 'Welcome back'}</CardTitle><CardDescription>{reset ? 'We’ll email you a secure reset link.' : 'Sign in to open your maintenance log.'}</CardDescription></CardHeader><CardContent><form onSubmit={submit} className="form-stack"><div className="field"><Label htmlFor="email">Email address</Label><Input id="email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required /></div>{!reset && <div className="field"><Label htmlFor="password">Password</Label><Input id="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></div>}<Button size="lg" type="submit" disabled={submitting}>{submitting ? 'Please wait…' : reset ? 'Send reset link' : 'Sign in'} <ArrowRight /></Button><Button variant="ghost" type="button" onClick={() => setReset((value) => !value)}>{reset ? 'Back to sign in' : 'Forgot password?'}</Button></form></CardContent></Card></div><Toaster position="bottom-center" richColors /></div></TooltipProvider>
-}
-
-function OdometerDigits({ value }: { value: number }) { return <div className="odometer-display" aria-label={`${value.toLocaleString()} kilometres`}><div className="odometer-digits">{String(Math.max(0, Math.round(value))).padStart(5, '0').split('').map((digit, index) => <span className="odometer-digit" key={`${digit}-${index}`}>{digit}</span>)}</div><span className="odometer-unit">km</span></div> }
-function BikeHero({ bike, onEdit }: { bike: Motorcycle; onEdit: () => void }) { return <Card className="bike-hero"><CardContent><span className="bike-avatar"><Bike /></span><div className="bike-title-row"><div><p className="eyebrow">Motorcycle / active log</p><h2>{bike.name}</h2><p>{bike.make} {bike.model} · Tracking since {bike.startDate ? new Date(`${bike.startDate}T12:00:00`).toLocaleDateString('en-MY', { month: 'short', year: 'numeric' }) : 'not set'}</p></div><Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon" onClick={onEdit} aria-label="Edit motorcycle" />}><Pencil /></TooltipTrigger><TooltipContent>Edit motorcycle</TooltipContent></Tooltip></div><Separator orientation="vertical" className="bike-divider" /><div className="odometer"><span><Gauge /> Odometer</span><OdometerDigits value={bike.currentOdometerKm} /></div></CardContent></Card> }
-function NextCheckpoint({ row, onLog }: { row?: { item: MaintenanceItem; result: ReturnType<typeof getStatus> }; onLog: (itemId: string) => void }) { if (!row) return <div className="checkpoint-strip checkpoint-clear"><div><span className="checkpoint-label">Next checkpoint</span><strong>Route is clear</strong><small>No scheduled work needs attention right now.</small></div></div>; const detail = row.result.status === 'overdue' ? 'Overdue — book this before your next ride' : row.result.status === 'due' ? 'Due now — log it when complete' : row.result.status === 'needs_baseline' ? 'Set a baseline to start tracking' : 'Due soon — keep it on your radar'; return <div className="checkpoint-strip"><div><span className="checkpoint-label">Next checkpoint</span><strong>{row.item.name}</strong><small>{detail}</small></div><Button onClick={() => onLog(row.item.id)}><Wrench /> Log work</Button></div> }
-function Overview({ statuses, urgent, onLog }: { statuses: Array<{ item: MaintenanceItem; result: ReturnType<typeof getStatus> }>; urgent: Array<{ item: MaintenanceItem; result: ReturnType<typeof getStatus> }>; onLog: (itemId: string) => void }) {
-  const remaining = urgent.length ? statuses.filter(({ item }) => !urgent.some((row) => row.item.id === item.id)) : statuses
-  return <div className="content-stack"><MaintenanceSection title="Next up" description="Items that need your attention first." count={urgent.length} rows={urgent} empty="Nothing is due right now." onLog={onLog} /><MaintenanceSection title={urgent.length ? 'Rest of route' : 'Service route'} description="Your remaining maintenance checkpoints." rows={remaining} onLog={onLog} /></div>
-}
-function MaintenanceSection({ title, description, count, rows, empty, onLog }: { title: string; description: string; count?: number; rows: Array<{ item: MaintenanceItem; result: ReturnType<typeof getStatus> }>; empty?: string; onLog: (itemId: string) => void }) { return <section><div className="section-heading"><div><h2>{title}</h2><p>{description}</p></div>{count !== undefined && <span className="section-count">{count}</span>}</div><Card className="maintenance-list"><CardContent>{rows.length ? rows.map(({ item, result }) => <MaintenanceRow key={item.id} item={item} result={result} onClick={() => onLog(item.id)} />) : <div className="empty-state"><CheckCircle2 /><div><strong>All caught up</strong><span>{empty}</span></div></div>}</CardContent></Card></section> }
-function MaintenanceRow({ item, result, onClick }: { item: MaintenanceItem; result: ReturnType<typeof getStatus>; onClick: () => void }) {
-  const info = statusMeta[result.status], Icon = item.basis === 'time' ? Clock3 : item.basis === 'distance' ? Milestone : Eye
-  const detail = result.status === 'overdue' ? item.basis === 'time' ? `${Math.abs(result.days ?? 0)} days overdue` : `${Math.abs(result.remaining ?? 0).toLocaleString()} km overdue` : result.status === 'due' ? 'Due today' : result.status === 'due_soon' ? item.basis === 'time' ? `Due in ${result.days} days` : `Due in ${result.remaining?.toLocaleString()} km` : item.basis === 'condition' ? 'Inspect before your next long ride' : 'No action needed'
-  const schedule = item.basis === 'time' ? `Every ${item.intervalMonths} months` : item.basis === 'distance' ? `Every ${item.intervalKm?.toLocaleString()} km` : 'Condition-based'
-  return <Button variant="ghost" className="maintenance-row" onClick={onClick}><span className="row-icon"><Icon /></span><span className="row-copy"><strong>{item.name}</strong><span>{schedule}</span></span><span className={`row-status ${info.className}`}><strong>{info.label}</strong><small>{detail}</small></span><ChevronRight className="row-chevron" /></Button>
-}
-function HistoryView({ records, items, onAdd, onEdit, onDelete }: { records: MaintenanceRecord[]; items: MaintenanceItem[]; onAdd: () => void; onEdit: (record: MaintenanceRecord) => void; onDelete: (record: MaintenanceRecord) => void }) {
-  const sorted = [...records].sort((a, b) => b.performedDate.localeCompare(a.performedDate))
-  return <section className="content-stack"><div className="section-heading"><div><h2>Maintenance history</h2><p>Every service, repair, and inspection in one timeline.</p></div><Button variant="outline" onClick={onAdd}><Plus /> Add entry</Button></div><Card className="history-card"><CardContent>{sorted.length ? sorted.map((record) => { const item = items.find((entry) => entry.id === record.itemId); return <div className="history-row" key={record.id}><div className="history-date"><strong>{new Date(`${record.performedDate}T12:00:00`).toLocaleDateString('en-MY', { day: '2-digit' })}</strong><span>{new Date(`${record.performedDate}T12:00:00`).toLocaleDateString('en-MY', { month: 'short', year: 'numeric' })}</span></div><div className="history-copy"><strong>{item?.name ?? 'Maintenance'}</strong><span>{record.odometerKm.toLocaleString()} km{record.provider ? ` · ${record.provider}` : ''}</span>{record.notes && <small>{record.notes}</small>}</div><div className="history-cost">{formatMoney(record.costSen)}</div><DropdownMenu><DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`Actions for ${item?.name ?? 'entry'}`} />}><Ellipsis /></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => onEdit(record)}><Pencil /> Edit</DropdownMenuItem><DropdownMenuItem variant="destructive" onClick={() => onDelete(record)}><Trash2 /> Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div> }) : <div className="empty-history"><HistoryIcon /><h3>No entries yet</h3><p>Log your first service to start a trustworthy maintenance timeline.</p><Button onClick={onAdd}><Plus /> Log maintenance</Button></div>}</CardContent></Card></section>
-}
-
-function SettingsView({ bike, items, userId, motorcycleId, onBikeSaved, onItemsChanged }: { bike: Motorcycle; items: MaintenanceItem[]; userId: string; motorcycleId: string; onBikeSaved: (bike: Motorcycle) => void; onItemsChanged: (items: MaintenanceItem[]) => void }) {
-  const [draftBike, setDraftBike] = useState(bike), [saving, setSaving] = useState(false), [editingItem, setEditingItem] = useState<MaintenanceItem | 'new' | null>(null), [removeTarget, setRemoveTarget] = useState<MaintenanceItem | null>(null)
-  const activeItems = items.filter((item) => item.active)
-  async function saveBikeProfile(event: FormEvent) { event.preventDefault(); setSaving(true); try { const saved = await saveMotorcycle(userId, motorcycleId, draftBike); setDraftBike(saved); onBikeSaved(saved); toast.success('Motorcycle saved') } catch (error) { toast.error('Could not save motorcycle', { description: error instanceof Error ? error.message : 'Try again.' }) } finally { setSaving(false) } }
-  async function saveServiceItem(item: Omit<MaintenanceItem, 'id'> & { id?: string }) {
+    if (!deleteTarget) return;
     try {
-      if (item.id) { const updated = { ...item, id: item.id } as MaintenanceItem; await saveItem(item.id, updated); onItemsChanged(items.map((current) => current.id === item.id ? updated : current)) }
-      else { const created = await createItem(userId, motorcycleId, item); onItemsChanged([...items, created]) }
-      setEditingItem(null); toast.success(item.id ? 'Service item updated' : 'Service item added')
-    } catch (error) { toast.error('Could not save service item', { description: error instanceof Error ? error.message : 'Try again.' }); throw error }
+      await deleteRecord(deleteTarget.id);
+      setRecords((current) =>
+        current.filter((record) => record.id !== deleteTarget.id),
+      );
+      toast.success("Entry deleted");
+    } catch (error) {
+      toast.error("Could not delete entry", {
+        description: error instanceof Error ? error.message : "Try again.",
+      });
+    } finally {
+      setDeleteTarget(null);
+    }
   }
-  async function confirmRemove() { if (!removeTarget) return; try { await removeItem(removeTarget.id); onItemsChanged(items.map((item) => item.id === removeTarget.id ? { ...item, active: false } : item)); toast.success('Service item removed', { description: 'Past maintenance entries are still kept in history.' }) } catch (error) { toast.error('Could not remove service item', { description: error instanceof Error ? error.message : 'Try again.' }) } finally { setRemoveTarget(null) } }
-  return <div className="settings-layout"><div><h2>Settings</h2><p>Manage your motorcycle and its maintenance schedule.</p></div>
-    <form onSubmit={saveBikeProfile}><Card><CardHeader><CardTitle>Motorcycle</CardTitle><CardDescription>These values power your due dates and mileage reminders.</CardDescription></CardHeader><CardContent className="settings-grid"><FieldInput id="bike-name" label="Display name" value={draftBike.name} onChange={(value) => setDraftBike({ ...draftBike, name: value })} wide /><FieldInput id="make" label="Make" value={draftBike.make} onChange={(value) => setDraftBike({ ...draftBike, make: value })} /><FieldInput id="model" label="Model" value={draftBike.model} onChange={(value) => setDraftBike({ ...draftBike, model: value })} /><div className="field"><Label htmlFor="start-date">Tracking since</Label><Input id="start-date" type="date" value={draftBike.startDate} onChange={(event) => setDraftBike({ ...draftBike, startDate: event.target.value })} /></div><div className="field"><Label htmlFor="odometer">Current odometer (km)</Label><Input id="odometer" type="number" min="0" value={draftBike.currentOdometerKm} onChange={(event) => setDraftBike({ ...draftBike, currentOdometerKm: Math.max(0, Number(event.target.value)) })} required /></div></CardContent><div className="card-actions"><Button type="submit" disabled={saving}>{saving ? 'Saving…' : <><Check /> Save motorcycle</>}</Button></div></Card></form>
-    <Card className="service-items-card"><CardHeader className="service-items-head"><div><CardTitle>Service items</CardTitle><CardDescription>Add, remove, or change how each reminder is measured.</CardDescription></div><Button onClick={() => setEditingItem('new')}><Plus /> Add item</Button></CardHeader><CardContent className="service-item-list">{activeItems.map((item) => <div className="service-item-row" key={item.id}><span className="service-item-icon">{item.basis === 'time' ? <Clock3 /> : item.basis === 'distance' ? <Milestone /> : <Eye />}</span><span className="service-item-copy"><strong>{item.name}</strong><small>{item.basis === 'time' ? `Every ${item.intervalMonths} months` : item.basis === 'distance' ? `Every ${item.intervalKm?.toLocaleString()} km` : 'Condition check'}</small></span><DropdownMenu><DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`Manage ${item.name}`} />}><Ellipsis /></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => setEditingItem(item)}><Pencil /> Edit</DropdownMenuItem><DropdownMenuItem variant="destructive" onClick={() => setRemoveTarget(item)}><Trash2 /> Remove</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>)}</CardContent></Card>
-    {editingItem && <ServiceItemDialog item={editingItem === 'new' ? undefined : editingItem} nextSortOrder={Math.max(0, ...items.map((item) => item.sortOrder)) + 1} onOpenChange={(open) => !open && setEditingItem(null)} onSave={saveServiceItem} />}
-    <AlertDialog open={Boolean(removeTarget)} onOpenChange={(open) => !open && setRemoveTarget(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Remove {removeTarget?.name}?</AlertDialogTitle><AlertDialogDescription>It will disappear from your schedule and logging options. Existing history will remain intact.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={confirmRemove}><Trash2 /> Remove item</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-  </div>
+  if (!authReady) return <LoadingScreen />;
+  if (!supabase) return <ConfigurationScreen />;
+  if (!session) return <AuthScreen />;
+  if (!bike || dataUserId !== session.user.id) return <LoadingScreen />;
+  const urgent = statuses.filter(({ result }) =>
+    ["overdue", "due", "due_soon", "needs_baseline"].includes(result.status),
+  );
+  const initials = session.user.email?.slice(0, 2).toUpperCase() ?? "AL";
+  return (
+    <TooltipProvider>
+      <div className="app-shell">
+        <header className="topbar">
+          <div className="topbar-inner">
+            <Brand />
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="account-button"
+                    aria-label="Account menu"
+                  />
+                }
+              >
+                <Avatar>
+                  <AvatarFallback>{initials}</AvatarFallback>
+                </Avatar>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="account-menu">
+                <div className="account-email">
+                  Signed in as
+                  <br />
+                  <strong>{session.user.email}</strong>
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => supabase?.auth.signOut()}>
+                  <LogOut /> Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </header>
+        <main className="main-content">
+          <BikeHero bike={bike} onEdit={() => setView("settings")} />
+          <NextCheckpoint
+            row={urgent[0]}
+            onLog={(itemId) => setLogTarget({ itemId })}
+          />
+          <Tabs value={view} onValueChange={(next) => setView(next as View)}>
+            <div className="nav-row">
+              <TabsList>
+                <TabsTrigger value="overview">
+                  <CircleGauge /> <span>Route</span>
+                </TabsTrigger>
+                <TabsTrigger value="history">
+                  <HistoryIcon /> <span>History</span>
+                  <span className="tab-count">{records.length}</span>
+                </TabsTrigger>
+                <TabsTrigger value="settings">
+                  <Settings2 /> <span>Bike</span>
+                </TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value="overview">
+              <Overview
+                statuses={statuses}
+                urgent={urgent}
+                onLog={(itemId) => setLogTarget({ itemId })}
+              />
+            </TabsContent>
+            <TabsContent value="history">
+              <HistoryView
+                records={records}
+                items={items}
+                onAdd={() => setLogTarget({ itemId: items[0]?.id ?? "" })}
+                onEdit={(record) =>
+                  setLogTarget({ itemId: record.itemId, record })
+                }
+                onDelete={setDeleteTarget}
+              />
+            </TabsContent>
+            <TabsContent value="settings">
+              <SettingsView
+                bike={bike}
+                items={items}
+                userId={session.user.id}
+                motorcycleId={motorcycleId}
+                onBikeSaved={setBike}
+                onItemsChanged={setItems}
+              />
+            </TabsContent>
+          </Tabs>
+        </main>
+        {logTarget && (
+          <LogDialog
+            open
+            target={logTarget}
+            items={items.filter((item) => item.active)}
+            bike={bike}
+            onOpenChange={(open) => !open && setLogTarget(null)}
+            onSave={handleRecordSave}
+          />
+        )}
+        <DeleteDialog
+          record={deleteTarget}
+          item={items.find((item) => item.id === deleteTarget?.itemId)}
+          onOpenChange={(open) => !open && setDeleteTarget(null)}
+          onConfirm={handleDelete}
+        />
+        <Toaster position="bottom-center" richColors closeButton />
+      </div>
+    </TooltipProvider>
+  );
 }
 
-function ServiceItemDialog({ item, nextSortOrder, onOpenChange, onSave }: { item?: MaintenanceItem; nextSortOrder: number; onOpenChange: (open: boolean) => void; onSave: (item: Omit<MaintenanceItem, 'id'> & { id?: string }) => Promise<void> }) {
-  const [name, setName] = useState(item?.name ?? ''), [basis, setBasis] = useState<Basis>(item?.basis ?? 'distance'), [interval, setInterval] = useState(String(item?.intervalKm ?? item?.intervalMonths ?? '')), [saving, setSaving] = useState(false)
-  async function submit(event: FormEvent) { event.preventDefault(); setSaving(true); try { await onSave({ ...(item ? { id: item.id } : {}), name: name.trim(), basis, intervalMonths: basis === 'time' ? Number(interval) : undefined, intervalKm: basis === 'distance' ? Number(interval) : undefined, sortOrder: item?.sortOrder ?? nextSortOrder, active: true }) } catch { setSaving(false) } }
-  return <Dialog open onOpenChange={onOpenChange}><DialogContent className="service-dialog" showCloseButton={false}><form onSubmit={submit}><DialogHeader><div className="dialog-heading"><span className="dialog-icon"><Settings2 /></span><div><DialogTitle>{item ? 'Edit service item' : 'Add service item'}</DialogTitle><DialogDescription>Choose whether this reminder follows time, mileage, or a visual check.</DialogDescription></div><DialogClose render={<Button variant="ghost" size="icon" type="button" aria-label="Close" />}><X /></DialogClose></div></DialogHeader><div className="dialog-fields"><div className="field"><Label htmlFor="item-name">Name</Label><Input id="item-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="e.g. Engine oil" required autoFocus /></div><div className="field"><Label>Reminder type</Label><Select value={basis} onValueChange={(value) => { if (value) { setBasis(value as Basis); setInterval('') } }}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="distance">Mileage based</SelectItem><SelectItem value="time">Time based</SelectItem><SelectItem value="condition">Condition check</SelectItem></SelectContent></Select></div>{basis !== 'condition' && <div className="field"><Label htmlFor="item-interval">{basis === 'time' ? 'Interval in months' : 'Interval in kilometres'}</Label><div className="interval-input"><Input id="item-interval" type="number" min="1" value={interval} onChange={(event) => setInterval(event.target.value)} required /><span>{basis === 'time' ? 'months' : 'km'}</span></div></div>}</div><DialogFooter><DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose><Button type="submit" disabled={saving}>{saving ? 'Saving…' : <><Check /> {item ? 'Save changes' : 'Add item'}</>}</Button></DialogFooter></form></DialogContent></Dialog>
+function Brand() {
+  return (
+    <div className="brand">
+      <div className="brand-mark">
+        <Wrench />
+      </div>
+      <div>
+        <strong>ADV Log</strong>
+        <span>Maintenance, made simple</span>
+      </div>
+    </div>
+  );
 }
-function FieldInput({ id, label, value, onChange, wide }: { id: string; label: string; value: string; onChange: (value: string) => void; wide?: boolean }) { return <div className={`field${wide ? ' field-wide' : ''}`}><Label htmlFor={id}>{label}</Label><Input id={id} value={value} onChange={(event) => onChange(event.target.value)} required /></div> }
+function LoadingScreen() {
+  return (
+    <div className="loading-screen">
+      <div className="loading-card">
+        <Brand />
+        <div className="loading-stack">
+          <Skeleton className="h-7 w-52" />
+          <Skeleton className="h-4 w-72 max-w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+      </div>
+    </div>
+  );
+}
+function ConfigurationScreen() {
+  return (
+    <div className="auth-screen">
+      <Card className="auth-card">
+        <CardHeader>
+          <div className="brand-mark">
+            <Wrench />
+          </div>
+          <CardTitle>Connect Supabase</CardTitle>
+          <CardDescription>
+            Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to start ADV
+            Log.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    </div>
+  );
+}
+function AuthScreen() {
+  const [email, setEmail] = useState(""),
+    [password, setPassword] = useState(""),
+    [reset, setReset] = useState(false),
+    [submitting, setSubmitting] = useState(false);
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!supabase) return;
+    setSubmitting(true);
+    if (reset) {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin,
+      });
+      if (error)
+        toast.error("Could not send reset email", {
+          description: error.message,
+        });
+      else
+        toast.success("Check your inbox", {
+          description: "Password reset instructions are on the way.",
+        });
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error)
+        toast.error("Could not sign in", { description: error.message });
+    }
+    setSubmitting(false);
+  }
+  return (
+    <TooltipProvider>
+      <div className="auth-screen">
+        <div className="auth-layout">
+          <div className="auth-story">
+            <Brand />
+            <div>
+              <p className="auth-kicker">Private maintenance log</p>
+              <h1>
+                Know what’s due.
+                <br />
+                Keep riding.
+              </h1>
+              <p>
+                A focused record of your service history, mileage, and next
+                maintenance.
+              </p>
+            </div>
+            <div className="auth-proof">
+              <ShieldCheck />
+              <span>
+                <strong>Private by default</strong>Your records are protected by
+                your account.
+              </span>
+            </div>
+          </div>
+          <Card className="auth-card">
+            <CardHeader>
+              <CardTitle>
+                {reset ? "Reset your password" : "Welcome back"}
+              </CardTitle>
+              <CardDescription>
+                {reset
+                  ? "We’ll email you a secure reset link."
+                  : "Sign in to open your maintenance log."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={submit} className="form-stack">
+                <div className="field">
+                  <Label htmlFor="email">Email address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="you@example.com"
+                    required
+                  />
+                </div>
+                {!reset && (
+                  <div className="field">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      autoComplete="current-password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      required
+                    />
+                  </div>
+                )}
+                <Button size="lg" type="submit" disabled={submitting}>
+                  {submitting
+                    ? "Please wait…"
+                    : reset
+                      ? "Send reset link"
+                      : "Sign in"}{" "}
+                  <ArrowRight />
+                </Button>
+                <Button
+                  variant="ghost"
+                  type="button"
+                  onClick={() => setReset((value) => !value)}
+                >
+                  {reset ? "Back to sign in" : "Forgot password?"}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+        <Toaster position="bottom-center" richColors />
+      </div>
+    </TooltipProvider>
+  );
+}
 
-function LogDialog({ open, target, items, bike, onOpenChange, onSave }: { open: boolean; target: LogTarget; items: MaintenanceItem[]; bike: Motorcycle; onOpenChange: (open: boolean) => void; onSave: (record: MaintenanceRecord) => Promise<void> }) {
-  const original = target.record
-  const [itemId, setItemId] = useState(target.itemId), [date, setDate] = useState(original?.performedDate ?? today), [km, setKm] = useState(String(original?.odometerKm ?? bike.currentOdometerKm)), [cost, setCost] = useState(original?.costSen == null ? '' : String(original.costSen / 100)), [provider, setProvider] = useState(original?.provider ?? ''), [notes, setNotes] = useState(original?.notes ?? ''), [saving, setSaving] = useState(false)
-  async function submit(event: FormEvent) { event.preventDefault(); setSaving(true); try { await onSave({ id: original?.id ?? crypto.randomUUID(), itemId, performedDate: date, odometerKm: Math.max(0, Number(km)), costSen: cost === '' ? undefined : Math.round(Number(cost) * 100), provider: provider.trim() || undefined, notes: notes.trim() || undefined }) } catch (error) { toast.error('Could not save this entry', { description: error instanceof Error ? error.message : 'Try again.' }); setSaving(false) } }
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="log-dialog" showCloseButton={false}><form onSubmit={submit}><DialogHeader><div className="dialog-heading"><span className="dialog-icon"><Wrench /></span><div><DialogTitle>{original ? 'Edit maintenance' : 'Log maintenance'}</DialogTitle><DialogDescription>{original ? 'Update this entry and save it to Supabase.' : 'Add the work completed on your motorcycle.'}</DialogDescription></div><DialogClose render={<Button variant="ghost" size="icon" type="button" aria-label="Close" />}><X /></DialogClose></div></DialogHeader><div className="dialog-fields"><div className="field"><Label>Maintenance item</Label><Select value={itemId} itemToStringLabel={(value) => items.find((item) => item.id === value)?.name ?? ''} onValueChange={(value) => value && setItemId(value)} disabled={Boolean(original)}><SelectTrigger className="w-full"><SelectValue /></SelectTrigger><SelectContent>{items.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}</SelectContent></Select></div><div className="dialog-grid"><div className="field"><Label htmlFor="performed-date"><CalendarDays /> Date performed</Label><Input id="performed-date" type="date" max={today} value={date} onChange={(event) => setDate(event.target.value)} required /></div><div className="field"><Label htmlFor="record-odometer"><Gauge /> Odometer (km)</Label><Input id="record-odometer" type="number" min="0" value={km} onChange={(event) => setKm(event.target.value)} required /></div></div><div className="dialog-grid"><div className="field"><Label htmlFor="cost">Cost (RM)</Label><Input id="cost" type="number" min="0" step="0.01" value={cost} onChange={(event) => setCost(event.target.value)} placeholder="Optional" /></div><div className="field"><Label htmlFor="provider">Workshop / provider</Label><Input id="provider" value={provider} onChange={(event) => setProvider(event.target.value)} placeholder="Optional" /></div></div><div className="field"><Label htmlFor="notes">Notes</Label><Textarea id="notes" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Parts used, observations, or anything worth remembering" /></div></div><DialogFooter><DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose><Button type="submit" disabled={saving}>{saving ? 'Saving…' : <><Check /> {original ? 'Save changes' : 'Save record'}</>}</Button></DialogFooter></form></DialogContent></Dialog>
+function OdometerDigits({ value }: { value: number }) {
+  return (
+    <div
+      className="odometer-display"
+      aria-label={`${value.toLocaleString()} kilometres`}
+    >
+      <div className="odometer-digits">
+        {String(Math.max(0, Math.round(value)))
+          .padStart(5, "0")
+          .split("")
+          .map((digit, index) => (
+            <span className="odometer-digit" key={`${digit}-${index}`}>
+              {digit}
+            </span>
+          ))}
+      </div>
+      <span className="odometer-unit">km</span>
+    </div>
+  );
 }
-function DeleteDialog({ record, item, onOpenChange, onConfirm }: { record: MaintenanceRecord | null; item?: MaintenanceItem; onOpenChange: (open: boolean) => void; onConfirm: () => void }) { return <AlertDialog open={Boolean(record)} onOpenChange={onOpenChange}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete this maintenance entry?</AlertDialogTitle><AlertDialogDescription>{item?.name ?? 'This entry'} will be permanently removed from your Supabase history. This cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Keep entry</AlertDialogCancel><AlertDialogAction variant="destructive" onClick={onConfirm}><Trash2 /> Delete entry</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog> }
-export default App
+function BikeHero({ bike, onEdit }: { bike: Motorcycle; onEdit: () => void }) {
+  return (
+    <Card className="bike-hero">
+      <CardContent>
+        <span className="bike-avatar">
+          <Bike />
+        </span>
+        <div className="bike-title-row">
+          <div>
+            <p className="eyebrow">Motorcycle / active log</p>
+            <h2>{bike.name}</h2>
+            <p>
+              {bike.make} {bike.model} · Tracking since{" "}
+              {bike.startDate
+                ? new Date(`${bike.startDate}T12:00:00`).toLocaleDateString(
+                    "en-MY",
+                    { month: "short", year: "numeric" },
+                  )
+                : "not set"}
+            </p>
+          </div>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onEdit}
+                  aria-label="Edit motorcycle"
+                />
+              }
+            >
+              <Pencil />
+            </TooltipTrigger>
+            <TooltipContent>Edit motorcycle</TooltipContent>
+          </Tooltip>
+        </div>
+        <Separator orientation="vertical" className="bike-divider" />
+        <div className="odometer">
+          <span>
+            <Gauge /> Odometer
+          </span>
+          <OdometerDigits value={bike.currentOdometerKm} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+function NextCheckpoint({
+  row,
+  onLog,
+}: {
+  row?: { item: MaintenanceItem; result: ReturnType<typeof getStatus> };
+  onLog: (itemId: string) => void;
+}) {
+  if (!row)
+    return (
+      <div className="checkpoint-strip checkpoint-clear">
+        <div>
+          <span className="checkpoint-label">Next checkpoint</span>
+          <strong>Route is clear</strong>
+          <small>No scheduled work needs attention right now.</small>
+        </div>
+      </div>
+    );
+  const detail =
+    row.result.status === "overdue"
+      ? "Overdue — book this before your next ride"
+      : row.result.status === "due"
+        ? "Due now — log it when complete"
+        : row.result.status === "needs_baseline"
+          ? "Set a baseline to start tracking"
+          : "Due soon — keep it on your radar";
+  return (
+    <div className="checkpoint-strip">
+      <div>
+        <span className="checkpoint-label">Next checkpoint</span>
+        <strong>{row.item.name}</strong>
+        <small>{detail}</small>
+      </div>
+      <Button onClick={() => onLog(row.item.id)}>
+        <Wrench /> Log work
+      </Button>
+    </div>
+  );
+}
+function Overview({
+  statuses,
+  urgent,
+  onLog,
+}: {
+  statuses: Array<{
+    item: MaintenanceItem;
+    result: ReturnType<typeof getStatus>;
+  }>;
+  urgent: Array<{
+    item: MaintenanceItem;
+    result: ReturnType<typeof getStatus>;
+  }>;
+  onLog: (itemId: string) => void;
+}) {
+  const remaining = urgent.length
+    ? statuses.filter(
+        ({ item }) => !urgent.some((row) => row.item.id === item.id),
+      )
+    : statuses;
+  return (
+    <div className="content-stack">
+      <MaintenanceSection
+        title="Next up"
+        description="Items that need your attention first."
+        count={urgent.length}
+        rows={urgent}
+        empty="Nothing is due right now."
+        onLog={onLog}
+      />
+      <MaintenanceSection
+        title={urgent.length ? "Rest of route" : "Service route"}
+        description="Your remaining maintenance checkpoints."
+        rows={remaining}
+        onLog={onLog}
+      />
+    </div>
+  );
+}
+function MaintenanceSection({
+  title,
+  description,
+  count,
+  rows,
+  empty,
+  onLog,
+}: {
+  title: string;
+  description: string;
+  count?: number;
+  rows: Array<{ item: MaintenanceItem; result: ReturnType<typeof getStatus> }>;
+  empty?: string;
+  onLog: (itemId: string) => void;
+}) {
+  return (
+    <section>
+      <div className="section-heading">
+        <div>
+          <h2>{title}</h2>
+          <p>{description}</p>
+        </div>
+        {count !== undefined && <span className="section-count">{count}</span>}
+      </div>
+      <Card className="maintenance-list">
+        <CardContent>
+          {rows.length ? (
+            rows.map(({ item, result }) => (
+              <MaintenanceRow
+                key={item.id}
+                item={item}
+                result={result}
+                onClick={() => onLog(item.id)}
+              />
+            ))
+          ) : (
+            <div className="empty-state">
+              <CheckCircle2 />
+              <div>
+                <strong>All caught up</strong>
+                <span>{empty}</span>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+function MaintenanceRow({
+  item,
+  result,
+  onClick,
+}: {
+  item: MaintenanceItem;
+  result: ReturnType<typeof getStatus>;
+  onClick: () => void;
+}) {
+  const info = statusMeta[result.status],
+    Icon =
+      item.basis === "time"
+        ? Clock3
+        : item.basis === "distance"
+          ? Milestone
+          : Eye;
+  const detail =
+    result.status === "overdue"
+      ? item.basis === "time"
+        ? `${Math.abs(result.days ?? 0)} days overdue`
+        : `${Math.abs(result.remaining ?? 0).toLocaleString()} km overdue`
+      : result.status === "due"
+        ? "Due today"
+        : result.status === "due_soon"
+          ? item.basis === "time"
+            ? `Due in ${result.days} days`
+            : `Due in ${result.remaining?.toLocaleString()} km`
+          : item.basis === "condition"
+            ? "Inspect before your next long ride"
+            : "No action needed";
+  const schedule =
+    item.basis === "time"
+      ? `Every ${item.intervalMonths} months`
+      : item.basis === "distance"
+        ? `Every ${item.intervalKm?.toLocaleString()} km`
+        : "Condition-based";
+  return (
+    <Button variant="ghost" className="maintenance-row" onClick={onClick}>
+      <span className="row-icon">
+        <Icon />
+      </span>
+      <span className="row-copy">
+        <strong>{item.name}</strong>
+        <span>{schedule}</span>
+      </span>
+      <span className={`row-status ${info.className}`}>
+        <strong>{info.label}</strong>
+        <small>{detail}</small>
+      </span>
+      <ChevronRight className="row-chevron" />
+    </Button>
+  );
+}
+function DatePickerField({
+  id,
+  label,
+  value,
+  onChange,
+  max,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  max?: string;
+}) {
+  const selected = value ? new Date(`${value}T12:00:00`) : undefined;
+  return (
+    <div className="field">
+      <Label htmlFor={id}>{label}</Label>
+      <Popover>
+        <PopoverTrigger
+          render={
+            <Button
+              id={id}
+              type="button"
+              variant="outline"
+              className="date-picker-trigger"
+            >
+              <CalendarIcon />
+              {selected
+                ? selected.toLocaleDateString("en-MY", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })
+                : "Choose date"}
+            </Button>
+          }
+        />
+        <PopoverContent>
+          <Calendar
+            mode="single"
+            selected={selected}
+            disabled={max ? { after: new Date(`${max}T12:00:00`) } : undefined}
+            onSelect={(date) =>
+              date && onChange(date.toISOString().slice(0, 10))
+            }
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+function HistoryView({
+  records,
+  items,
+  onAdd,
+  onEdit,
+  onDelete,
+}: {
+  records: MaintenanceRecord[];
+  items: MaintenanceItem[];
+  onAdd: () => void;
+  onEdit: (record: MaintenanceRecord) => void;
+  onDelete: (record: MaintenanceRecord) => void;
+}) {
+  const sorted = [...records].sort((a, b) =>
+    b.performedDate.localeCompare(a.performedDate),
+  );
+  return (
+    <section className="content-stack">
+      <div className="section-heading">
+        <div>
+          <h2>Maintenance history</h2>
+          <p>Every service, repair, and inspection in one timeline.</p>
+        </div>
+        <Button variant="outline" onClick={onAdd}>
+          <Plus /> Add entry
+        </Button>
+      </div>
+      <Card className="history-card">
+        <CardContent>
+          {sorted.length ? (
+            sorted.map((record) => {
+              const item = items.find((entry) => entry.id === record.itemId);
+              return (
+                <div className="history-row" key={record.id}>
+                  <div className="history-date">
+                    <strong>
+                      {new Date(
+                        `${record.performedDate}T12:00:00`,
+                      ).toLocaleDateString("en-MY", { day: "2-digit" })}
+                    </strong>
+                    <span>
+                      {new Date(
+                        `${record.performedDate}T12:00:00`,
+                      ).toLocaleDateString("en-MY", {
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </span>
+                  </div>
+                  <div className="history-copy">
+                    <strong>{item?.name ?? "Maintenance"}</strong>
+                    <span>
+                      {record.odometerKm.toLocaleString()} km
+                      {record.provider ? ` · ${record.provider}` : ""}
+                    </span>
+                    {record.notes && <small>{record.notes}</small>}
+                  </div>
+                  <div className="history-cost">
+                    {formatMoney(record.costSen)}
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Actions for ${item?.name ?? "entry"}`}
+                        />
+                      }
+                    >
+                      <Ellipsis />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onEdit(record)}>
+                        <Pencil /> Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        variant="destructive"
+                        onClick={() => onDelete(record)}
+                      >
+                        <Trash2 /> Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              );
+            })
+          ) : (
+            <div className="empty-history">
+              <HistoryIcon />
+              <h3>No entries yet</h3>
+              <p>
+                Log your first service to start a trustworthy maintenance
+                timeline.
+              </p>
+              <Button onClick={onAdd}>
+                <Plus /> Log maintenance
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
+function SettingsView({
+  bike,
+  items,
+  userId,
+  motorcycleId,
+  onBikeSaved,
+  onItemsChanged,
+}: {
+  bike: Motorcycle;
+  items: MaintenanceItem[];
+  userId: string;
+  motorcycleId: string;
+  onBikeSaved: (bike: Motorcycle) => void;
+  onItemsChanged: (items: MaintenanceItem[]) => void;
+}) {
+  const [draftBike, setDraftBike] = useState(bike),
+    [saving, setSaving] = useState(false),
+    [editingItem, setEditingItem] = useState<MaintenanceItem | "new" | null>(
+      null,
+    ),
+    [removeTarget, setRemoveTarget] = useState<MaintenanceItem | null>(null);
+  const activeItems = items.filter((item) => item.active);
+  async function saveBikeProfile(event: FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      const saved = await saveMotorcycle(userId, motorcycleId, draftBike);
+      setDraftBike(saved);
+      onBikeSaved(saved);
+      toast.success("Motorcycle saved");
+    } catch (error) {
+      toast.error("Could not save motorcycle", {
+        description: error instanceof Error ? error.message : "Try again.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+  async function saveServiceItem(
+    item: Omit<MaintenanceItem, "id"> & { id?: string },
+  ) {
+    try {
+      if (item.id) {
+        const updated = { ...item, id: item.id } as MaintenanceItem;
+        await saveItem(item.id, updated);
+        onItemsChanged(
+          items.map((current) => (current.id === item.id ? updated : current)),
+        );
+      } else {
+        const created = await createItem(userId, motorcycleId, item);
+        onItemsChanged([...items, created]);
+      }
+      setEditingItem(null);
+      toast.success(item.id ? "Service item updated" : "Service item added");
+    } catch (error) {
+      toast.error("Could not save service item", {
+        description: error instanceof Error ? error.message : "Try again.",
+      });
+      throw error;
+    }
+  }
+  async function confirmRemove() {
+    if (!removeTarget) return;
+    try {
+      await removeItem(removeTarget.id);
+      onItemsChanged(
+        items.map((item) =>
+          item.id === removeTarget.id ? { ...item, active: false } : item,
+        ),
+      );
+      toast.success("Service item removed", {
+        description: "Past maintenance entries are still kept in history.",
+      });
+    } catch (error) {
+      toast.error("Could not remove service item", {
+        description: error instanceof Error ? error.message : "Try again.",
+      });
+    } finally {
+      setRemoveTarget(null);
+    }
+  }
+  return (
+    <div className="settings-layout">
+      <div>
+        <h2>Settings</h2>
+        <p>Manage your motorcycle and its maintenance schedule.</p>
+      </div>
+      <form onSubmit={saveBikeProfile}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Motorcycle</CardTitle>
+            <CardDescription>
+              These values power your due dates and mileage reminders.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="settings-grid">
+            <FieldInput
+              id="bike-name"
+              label="Display name"
+              value={draftBike.name}
+              onChange={(value) => setDraftBike({ ...draftBike, name: value })}
+              wide
+            />
+            <FieldInput
+              id="make"
+              label="Make"
+              value={draftBike.make}
+              onChange={(value) => setDraftBike({ ...draftBike, make: value })}
+            />
+            <FieldInput
+              id="model"
+              label="Model"
+              value={draftBike.model}
+              onChange={(value) => setDraftBike({ ...draftBike, model: value })}
+            />
+            <DatePickerField id="start-date" label="Tracking since" value={draftBike.startDate} onChange={(value) => setDraftBike({ ...draftBike, startDate: value })} />
+            <div className="field">
+              <Label htmlFor="odometer">Current odometer (km)</Label>
+              <Input
+                id="odometer"
+                type="number"
+                min="0"
+                value={draftBike.currentOdometerKm}
+                onChange={(event) =>
+                  setDraftBike({
+                    ...draftBike,
+                    currentOdometerKm: Math.max(0, Number(event.target.value)),
+                  })
+                }
+                required
+              />
+            </div>
+          </CardContent>
+          <div className="card-actions">
+            <Button type="submit" disabled={saving}>
+              {saving ? (
+                "Saving…"
+              ) : (
+                <>
+                  <Check /> Save motorcycle
+                </>
+              )}
+            </Button>
+          </div>
+        </Card>
+      </form>
+      <Card className="service-items-card">
+        <CardHeader className="service-items-head">
+          <div>
+            <CardTitle>Service items</CardTitle>
+            <CardDescription>
+              Add, remove, or change how each reminder is measured.
+            </CardDescription>
+          </div>
+          <Button onClick={() => setEditingItem("new")}>
+            <Plus /> Add item
+          </Button>
+        </CardHeader>
+        <CardContent className="service-item-list">
+          {activeItems.map((item) => (
+            <div className="service-item-row" key={item.id}>
+              <span className="service-item-icon">
+                {item.basis === "time" ? (
+                  <Clock3 />
+                ) : item.basis === "distance" ? (
+                  <Milestone />
+                ) : (
+                  <Eye />
+                )}
+              </span>
+              <span className="service-item-copy">
+                <strong>{item.name}</strong>
+                <small>
+                  {item.basis === "time"
+                    ? `Every ${item.intervalMonths} months`
+                    : item.basis === "distance"
+                      ? `Every ${item.intervalKm?.toLocaleString()} km`
+                      : "Condition check"}
+                </small>
+              </span>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Manage ${item.name}`}
+                    />
+                  }
+                >
+                  <Ellipsis />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setEditingItem(item)}>
+                    <Pencil /> Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onClick={() => setRemoveTarget(item)}
+                  >
+                    <Trash2 /> Remove
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+      {editingItem && (
+        <ServiceItemDialog
+          item={editingItem === "new" ? undefined : editingItem}
+          nextSortOrder={
+            Math.max(0, ...items.map((item) => item.sortOrder)) + 1
+          }
+          onOpenChange={(open) => !open && setEditingItem(null)}
+          onSave={saveServiceItem}
+        />
+      )}
+      <AlertDialog
+        open={Boolean(removeTarget)}
+        onOpenChange={(open) => !open && setRemoveTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {removeTarget?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              It will disappear from your schedule and logging options. Existing
+              history will remain intact.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={confirmRemove}>
+              <Trash2 /> Remove item
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+function ServiceItemDialog({
+  item,
+  nextSortOrder,
+  onOpenChange,
+  onSave,
+}: {
+  item?: MaintenanceItem;
+  nextSortOrder: number;
+  onOpenChange: (open: boolean) => void;
+  onSave: (
+    item: Omit<MaintenanceItem, "id"> & { id?: string },
+  ) => Promise<void>;
+}) {
+  const [name, setName] = useState(item?.name ?? ""),
+    [basis, setBasis] = useState<Basis>(item?.basis ?? "distance"),
+    [interval, setInterval] = useState(
+      String(item?.intervalKm ?? item?.intervalMonths ?? ""),
+    ),
+    [saving, setSaving] = useState(false);
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      await onSave({
+        ...(item ? { id: item.id } : {}),
+        name: name.trim(),
+        basis,
+        intervalMonths: basis === "time" ? Number(interval) : undefined,
+        intervalKm: basis === "distance" ? Number(interval) : undefined,
+        sortOrder: item?.sortOrder ?? nextSortOrder,
+        active: true,
+      });
+    } catch {
+      setSaving(false);
+    }
+  }
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent className="service-dialog" showCloseButton={false}>
+        <form onSubmit={submit}>
+          <DialogHeader>
+            <div className="dialog-heading">
+              <span className="dialog-icon">
+                <Settings2 />
+              </span>
+              <div>
+                <DialogTitle>
+                  {item ? "Edit service item" : "Add service item"}
+                </DialogTitle>
+                <DialogDescription>
+                  Choose whether this reminder follows time, mileage, or a
+                  visual check.
+                </DialogDescription>
+              </div>
+              <DialogClose
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    type="button"
+                    aria-label="Close"
+                  />
+                }
+              >
+                <X />
+              </DialogClose>
+            </div>
+          </DialogHeader>
+          <div className="dialog-fields">
+            <div className="field">
+              <Label htmlFor="item-name">Name</Label>
+              <Input
+                id="item-name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="e.g. Engine oil"
+                required
+                autoFocus
+              />
+            </div>
+            <div className="field">
+              <Label>Reminder type</Label>
+              <Select
+                value={basis}
+                onValueChange={(value) => {
+                  if (value) {
+                    setBasis(value as Basis);
+                    setInterval("");
+                  }
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="distance">Mileage based</SelectItem>
+                  <SelectItem value="time">Time based</SelectItem>
+                  <SelectItem value="condition">Condition check</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {basis !== "condition" && (
+              <div className="field">
+                <Label htmlFor="item-interval">
+                  {basis === "time"
+                    ? "Interval in months"
+                    : "Interval in kilometres"}
+                </Label>
+                <div className="interval-input">
+                  <Input
+                    id="item-interval"
+                    type="number"
+                    min="1"
+                    value={interval}
+                    onChange={(event) => setInterval(event.target.value)}
+                    required
+                  />
+                  <span>{basis === "time" ? "months" : "km"}</span>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" type="button" />}>
+              Cancel
+            </DialogClose>
+            <Button type="submit" disabled={saving}>
+              {saving ? (
+                "Saving…"
+              ) : (
+                <>
+                  <Check /> {item ? "Save changes" : "Add item"}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+function FieldInput({
+  id,
+  label,
+  value,
+  onChange,
+  wide,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  wide?: boolean;
+}) {
+  return (
+    <div className={`field${wide ? " field-wide" : ""}`}>
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        required
+      />
+    </div>
+  );
+}
+
+function LogDialog({
+  open,
+  target,
+  items,
+  bike,
+  onOpenChange,
+  onSave,
+}: {
+  open: boolean;
+  target: LogTarget;
+  items: MaintenanceItem[];
+  bike: Motorcycle;
+  onOpenChange: (open: boolean) => void;
+  onSave: (record: MaintenanceRecord) => Promise<void>;
+}) {
+  const original = target.record;
+  const [itemId, setItemId] = useState(target.itemId),
+    [date, setDate] = useState(original?.performedDate ?? today),
+    [km, setKm] = useState(
+      String(original?.odometerKm ?? bike.currentOdometerKm),
+    ),
+    [cost, setCost] = useState(
+      original?.costSen == null ? "" : String(original.costSen / 100),
+    ),
+    [provider, setProvider] = useState(original?.provider ?? ""),
+    [notes, setNotes] = useState(original?.notes ?? ""),
+    [saving, setSaving] = useState(false);
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      await onSave({
+        id: original?.id ?? crypto.randomUUID(),
+        itemId,
+        performedDate: date,
+        odometerKm: Math.max(0, Number(km)),
+        costSen: cost === "" ? undefined : Math.round(Number(cost) * 100),
+        provider: provider.trim() || undefined,
+        notes: notes.trim() || undefined,
+      });
+    } catch (error) {
+      toast.error("Could not save this entry", {
+        description: error instanceof Error ? error.message : "Try again.",
+      });
+      setSaving(false);
+    }
+  }
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="log-dialog" showCloseButton={false}>
+        <form onSubmit={submit}>
+          <DialogHeader>
+            <div className="dialog-heading">
+              <span className="dialog-icon">
+                <Wrench />
+              </span>
+              <div>
+                <DialogTitle>
+                  {original ? "Edit maintenance" : "Log maintenance"}
+                </DialogTitle>
+                <DialogDescription>
+                  {original
+                    ? "Update this entry and save it to Supabase."
+                    : "Add the work completed on your motorcycle."}
+                </DialogDescription>
+              </div>
+              <DialogClose
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    type="button"
+                    aria-label="Close"
+                  />
+                }
+              >
+                <X />
+              </DialogClose>
+            </div>
+          </DialogHeader>
+          <div className="dialog-fields">
+            <div className="field">
+              <Label>Maintenance item</Label>
+              <Select
+                value={itemId}
+                itemToStringLabel={(value) =>
+                  items.find((item) => item.id === value)?.name ?? ""
+                }
+                onValueChange={(value) => value && setItemId(value)}
+                disabled={Boolean(original)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {items.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="dialog-grid">
+              <DatePickerField id="performed-date" label="Date performed" value={date} max={today} onChange={setDate} />
+              <div className="field">
+                <Label htmlFor="record-odometer">
+                  <Gauge /> Odometer (km)
+                </Label>
+                <Input
+                  id="record-odometer"
+                  type="number"
+                  min="0"
+                  value={km}
+                  onChange={(event) => setKm(event.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            <div className="dialog-grid">
+              <div className="field">
+                <Label htmlFor="cost">Cost (RM)</Label>
+                <Input
+                  id="cost"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={cost}
+                  onChange={(event) => setCost(event.target.value)}
+                  placeholder="Optional"
+                />
+              </div>
+              <div className="field">
+                <Label htmlFor="provider">Workshop / provider</Label>
+                <Input
+                  id="provider"
+                  value={provider}
+                  onChange={(event) => setProvider(event.target.value)}
+                  placeholder="Optional"
+                />
+              </div>
+            </div>
+            <div className="field">
+              <Label htmlFor="notes">Notes</Label>
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                placeholder="Parts used, observations, or anything worth remembering"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" type="button" />}>
+              Cancel
+            </DialogClose>
+            <Button type="submit" disabled={saving}>
+              {saving ? (
+                "Saving…"
+              ) : (
+                <>
+                  <Check /> {original ? "Save changes" : "Save record"}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+function DeleteDialog({
+  record,
+  item,
+  onOpenChange,
+  onConfirm,
+}: {
+  record: MaintenanceRecord | null;
+  item?: MaintenanceItem;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <AlertDialog open={Boolean(record)} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete this maintenance entry?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {item?.name ?? "This entry"} will be permanently removed from your
+            Supabase history. This cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Keep entry</AlertDialogCancel>
+          <AlertDialogAction variant="destructive" onClick={onConfirm}>
+            <Trash2 /> Delete entry
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+export default App;
