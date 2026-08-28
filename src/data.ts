@@ -32,7 +32,18 @@ export async function saveRecord(userId: string, motorcycleId: string, record: M
   if (error) throw error
 }
 export async function deleteRecord(id: string) { if (supabase) { const { error } = await supabase.from('maintenance_records').delete().eq('id', id); if (error) throw error } }
-export async function saveMotorcycle(userId: string, motorcycleId: string, bike: Motorcycle) { if (supabase) { const { error } = await supabase.from('motorcycles').update({ name: bike.name, make: bike.make, model: bike.model, start_date: bike.startDate || null, current_odometer_km: bike.currentOdometerKm }).eq('id', motorcycleId).eq('user_id', userId); if (error) throw error } }
+export async function saveMotorcycle(userId: string, motorcycleId: string, bike: Motorcycle) {
+  if (!supabase) throw new Error('Supabase is not configured.')
+  const { data, error } = await supabase.from('motorcycles').update({
+    name: bike.name.trim(),
+    make: bike.make.trim(),
+    model: bike.model.trim(),
+    start_date: bike.startDate || null,
+    current_odometer_km: Math.max(0, Math.round(Number(bike.currentOdometerKm) || 0)),
+  }).eq('id', motorcycleId).eq('user_id', userId).select('id,name,make,model,start_date,current_odometer_km').single()
+  if (error) throw error
+  return { id: data.id, name: data.name, make: data.make, model: data.model, startDate: data.start_date ?? '', currentOdometerKm: Number(data.current_odometer_km) } as Motorcycle & { id: string }
+}
 export async function saveItem(id: string, item: MaintenanceItem) {
   if (!supabase) throw new Error('Supabase is not configured.')
   const { error } = await supabase.from('maintenance_items').update({

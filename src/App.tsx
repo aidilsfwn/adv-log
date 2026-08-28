@@ -108,7 +108,7 @@ function HistoryView({ records, items, onAdd, onEdit, onDelete }: { records: Mai
 function SettingsView({ bike, items, userId, motorcycleId, onBikeSaved, onItemsChanged }: { bike: Motorcycle; items: MaintenanceItem[]; userId: string; motorcycleId: string; onBikeSaved: (bike: Motorcycle) => void; onItemsChanged: (items: MaintenanceItem[]) => void }) {
   const [draftBike, setDraftBike] = useState(bike), [saving, setSaving] = useState(false), [editingItem, setEditingItem] = useState<MaintenanceItem | 'new' | null>(null), [removeTarget, setRemoveTarget] = useState<MaintenanceItem | null>(null)
   const activeItems = items.filter((item) => item.active)
-  async function saveBikeProfile(event: FormEvent) { event.preventDefault(); setSaving(true); try { await saveMotorcycle(userId, motorcycleId, draftBike); onBikeSaved(draftBike); toast.success('Motorcycle saved') } catch (error) { toast.error('Could not save motorcycle', { description: error instanceof Error ? error.message : 'Try again.' }) } finally { setSaving(false) } }
+  async function saveBikeProfile(event: FormEvent) { event.preventDefault(); setSaving(true); try { const saved = await saveMotorcycle(userId, motorcycleId, draftBike); setDraftBike(saved); onBikeSaved(saved); toast.success('Motorcycle saved') } catch (error) { toast.error('Could not save motorcycle', { description: error instanceof Error ? error.message : 'Try again.' }) } finally { setSaving(false) } }
   async function saveServiceItem(item: Omit<MaintenanceItem, 'id'> & { id?: string }) {
     try {
       if (item.id) { const updated = { ...item, id: item.id } as MaintenanceItem; await saveItem(item.id, updated); onItemsChanged(items.map((current) => current.id === item.id ? updated : current)) }
