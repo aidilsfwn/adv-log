@@ -246,11 +246,33 @@ function App() {
           </div>
         </header>
         <main className="main-content">
-          <BikeHero bike={bike} onEdit={() => setView("settings")} />
-          <NextCheckpoint
-            row={urgent[0]}
-            onLog={(itemId) => setLogTarget({ itemId })}
-          />
+          <div className="page-heading">
+            <div>
+              <p className="eyebrow">Garage / {bike.name}</p>
+              <h1>Maintenance log</h1>
+              <p>Track service work, mileage and what needs attention next.</p>
+            </div>
+            <Button
+              onClick={() =>
+                setLogTarget({
+                  itemId:
+                    urgent[0]?.item.id ??
+                    items.find((item) => item.active)?.id ??
+                    "",
+                })
+              }
+              disabled={!items.some((item) => item.active)}
+            >
+              <Plus /> Log service
+            </Button>
+          </div>
+          <div className="summary-grid">
+            <BikeHero bike={bike} onEdit={() => setView("settings")} />
+            <NextCheckpoint
+              row={urgent[0]}
+              onLog={(itemId) => setLogTarget({ itemId })}
+            />
+          </div>
           <Tabs value={view} onValueChange={(next) => setView(next as View)}>
             <div className="nav-row">
               <TabsList>
@@ -332,7 +354,7 @@ function Brand() {
       </div>
       <div>
         <strong>ADV Log</strong>
-        <span>Maintenance, made simple</span>
+        <span>Motorcycle service records</span>
       </div>
     </div>
   );
@@ -495,16 +517,7 @@ function OdometerDigits({ value }: { value: number }) {
       className="odometer-display"
       aria-label={`${value.toLocaleString()} kilometres`}
     >
-      <div className="odometer-digits">
-        {String(Math.max(0, Math.round(value)))
-          .padStart(5, "0")
-          .split("")
-          .map((digit, index) => (
-            <span className="odometer-digit" key={`${digit}-${index}`}>
-              {digit}
-            </span>
-          ))}
-      </div>
+      <strong>{Math.max(0, Math.round(value)).toLocaleString()}</strong>
       <span className="odometer-unit">km</span>
     </div>
   );
