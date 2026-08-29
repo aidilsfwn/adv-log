@@ -56,6 +56,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -174,7 +175,7 @@ function App() {
   );
   async function handleRecordSave(record: MaintenanceRecord) {
     if (!session || !motorcycleId) return;
-    await saveRecord(session.user.id, motorcycleId, record);
+    await saveRecord(motorcycleId, record);
     setRecords((current) => [
       record,
       ...current.filter((entry) => entry.id !== record.id),
@@ -278,7 +279,7 @@ function App() {
                 items={items}
                 onAdd={() => setLogTarget({ itemId: items[0]?.id ?? "" })}
                 onEdit={(record) =>
-                  setLogTarget({ itemId: record.itemId, record })
+                  setLogTarget({ itemId: record.itemIds[0] ?? "", record })
                 }
                 onDelete={setDeleteTarget}
               />
@@ -299,7 +300,10 @@ function App() {
           <LogDialog
             open
             target={logTarget}
-            items={items.filter((item) => item.active)}
+            items={items.filter(
+              (item) =>
+                item.active || logTarget.record?.itemIds.includes(item.id),
+            )}
             bike={bike}
             onOpenChange={(open) => !open && setLogTarget(null)}
             onSave={handleRecordSave}
@@ -307,7 +311,10 @@ function App() {
         )}
         <DeleteDialog
           record={deleteTarget}
-          item={items.find((item) => item.id === deleteTarget?.itemId)}
+          itemNames={items
+            .filter((item) => deleteTarget?.itemIds.includes(item.id))
+            .map((item) => item.name)
+            .join(", ")}
           onOpenChange={(open) => !open && setDeleteTarget(null)}
           onConfirm={handleDelete}
         />
@@ -811,7 +818,10 @@ function HistoryView({
         <CardContent>
           {sorted.length ? (
             sorted.map((record) => {
-              const item = items.find((entry) => entry.id === record.itemId);
+              const recordItems = record.itemIds
+                .map((itemId) => items.find((entry) => entry.id === itemId))
+                .filter(Boolean) as MaintenanceItem[];
+              const itemNames = recordItems.map((item) => item.name).join(", ");
               return (
                 <div className="history-row" key={record.id}>
                   <div className="history-date">
@@ -830,7 +840,7 @@ function HistoryView({
                     </span>
                   </div>
                   <div className="history-copy">
-                    <strong>{item?.name ?? "Maintenance"}</strong>
+                    <strong>{itemNames || "Maintenance"}</strong>
                     <span>
                       {record.odometerKm.toLocaleString()} km
                       {record.provider ? ` · ${record.provider}` : ""}
@@ -846,7 +856,7 @@ function HistoryView({
                         <Button
                           variant="ghost"
                           size="icon"
-                          aria-label={`Actions for ${item?.name ?? "entry"}`}
+                          aria-label={`Actions for ${itemNames || "entry"}`}
                         />
                       }
                     >
@@ -1001,7 +1011,14 @@ function SettingsView({
               value={draftBike.model}
               onChange={(value) => setDraftBike({ ...draftBike, model: value })}
             />
-            <DatePickerField id="start-date" label="Tracking since" value={draftBike.startDate} onChange={(value) => setDraftBike({ ...draftBike, startDate: value })} />
+            <DatePickerField
+              id="start-date"
+              label="Tracking since"
+              value={draftBike.startDate}
+              onChange={(value) =>
+                setDraftBike({ ...draftBike, startDate: value })
+              }
+            />
             <div className="field">
               <Label htmlFor="odometer">Current odometer (km)</Label>
               <Input
@@ -1311,7 +1328,9 @@ function LogDialog({
   onSave: (record: MaintenanceRecord) => Promise<void>;
 }) {
   const original = target.record;
-  const [itemId, setItemId] = useState(target.itemId),
+  const [itemIds, setItemIds] = useState(
+      original?.itemIds ?? (target.itemId ? [target.itemId] : []),
+    ),
     [date, setDate] = useState(original?.performedDate ?? today),
     [km, setKm] = useState(
       String(original?.odometerKm ?? bike.currentOdometerKm),
@@ -1324,11 +1343,15 @@ function LogDialog({
     [saving, setSaving] = useState(false);
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (!itemIds.length) {
+      toast.error("Choose at least one maintenance item");
+      return;
+    }
     setSaving(true);
     try {
       await onSave({
         id: original?.id ?? crypto.randomUUID(),
-        itemId,
+        itemIds,
         performedDate: date,
         odometerKm: Math.max(0, Number(km)),
         costSen: cost === "" ? undefined : Math.round(Number(cost) * 100),
@@ -1377,29 +1400,63 @@ function LogDialog({
           </DialogHeader>
           <div className="dialog-fields">
             <div className="field">
-              <Label>Maintenance item</Label>
-              <Select
-                value={itemId}
-                itemToStringLabel={(value) =>
-                  items.find((item) => item.id === value)?.name ?? ""
-                }
-                onValueChange={(value) => value && setItemId(value)}
-                disabled={Boolean(original)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
+              <Label>Maintenance items</Label>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-between"
+                    />
+                  }
+                >
+                  <span>
+                    {itemIds.length
+                      ? `${itemIds.length} item${itemIds.length === 1 ? "" : "s"} selected`
+                      : "Choose items"}
+                  </span>
+                  <ChevronRight />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="maintenance-item-picker"
+                >
                   {items.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
+                    <DropdownMenuCheckboxItem
+                      key={item.id}
+                      checked={itemIds.includes(item.id)}
+                      onCheckedChange={(checked) =>
+                        setItemIds((current) =>
+                          checked
+                            ? [...current, item.id]
+                            : current.filter((id) => id !== item.id),
+                        )
+                      }
+                    >
                       {item.name}
-                    </SelectItem>
+                    </DropdownMenuCheckboxItem>
                   ))}
-                </SelectContent>
-              </Select>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {itemIds.length > 0 && (
+                <div className="selected-items">
+                  {itemIds.map((id) => (
+                    <span key={id}>
+                      {items.find((item) => item.id === id)?.name}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="dialog-grid">
-              <DatePickerField id="performed-date" label="Date performed" value={date} max={today} onChange={setDate} />
+              <DatePickerField
+                id="performed-date"
+                label="Date performed"
+                value={date}
+                max={today}
+                onChange={setDate}
+              />
               <div className="field">
                 <Label htmlFor="record-odometer">
                   <Gauge /> Odometer (km)
@@ -1468,12 +1525,12 @@ function LogDialog({
 }
 function DeleteDialog({
   record,
-  item,
+  itemNames,
   onOpenChange,
   onConfirm,
 }: {
   record: MaintenanceRecord | null;
-  item?: MaintenanceItem;
+  itemNames: string;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
 }) {
@@ -1483,7 +1540,7 @@ function DeleteDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Delete this maintenance entry?</AlertDialogTitle>
           <AlertDialogDescription>
-            {item?.name ?? "This entry"} will be permanently removed from your
+            {itemNames || "This entry"} will be permanently removed from your
             Supabase history. This cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>

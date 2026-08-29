@@ -65,3 +65,8 @@
   html { @apply font-sans; }
   body { @apply bg-background text-foreground; margin: 0; min-width: 320px; }
 }
+
+.maintenance-item-picker { min-width: min(360px, calc(100vw - 32px)); padding: 6px; }
+.maintenance-item-picker [data-slot="dropdown-menu-checkbox-item"] { min-height: 38px; padding-inline: 10px 34px; }
+.selected-items { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.selected-items span { border: 1px solid var(--border); background: var(--muted); padding: 3px 7px; font-size: 11px; }
