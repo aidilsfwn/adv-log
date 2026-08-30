@@ -1,6 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { motion } from "motion/react";
-import { ArrowRight, Gauge, ShieldCheck, Wrench } from "lucide-react";
+import { ArrowRight, ShieldCheck, Wrench } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import { supabase } from "../lib/supabase";
 import { Action, Field } from "./controls";
@@ -8,7 +8,7 @@ import { Action, Field } from "./controls";
 export function Identity({ compact = false }: { compact?: boolean }) {
   return (
     <div className={`identity${compact ? " identity--compact" : ""}`}>
-      <span className="identity-mark"><Gauge size={22} strokeWidth={1.8} /></span>
+      <span className="identity-mark"><img src="/favicon-96x96.png" alt="" /></span>
       <span><strong>ADV LOG</strong>{!compact && <small>Service intelligence</small>}</span>
     </div>
   );
