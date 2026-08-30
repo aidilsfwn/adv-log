@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { motion, useSpring, useTransform } from "motion/react";
-import { Activity, CalendarClock, Check, Eye, Gauge, Milestone, Pencil, Plus, Wrench } from "lucide-react";
+import { CalendarClock, Check, Eye, Gauge, Milestone, Pencil, Plus, Wrench } from "lucide-react";
 import type { MaintenanceItem, MaintenanceRecord, Motorcycle } from "../domain";
 import { getStatus } from "../domain";
 import { Action, EmptyMessage, StatusMark } from "./controls";
@@ -97,8 +97,11 @@ function MileageTrace({ records }: { records: MaintenanceRecord[] }) {
   const path = values.map((value, index) => `${(index / (values.length - 1)) * 100},${38 - ((value - min) / range) * 32}`).join(" ");
   return (
     <section className="mileage-trace">
-      <div><p className="overline"><Activity size={15} />Mileage progression</p><strong>{values.at(-1)?.toLocaleString()} km</strong></div>
-      <svg viewBox="0 0 100 44" preserveAspectRatio="none" role="img" aria-label="Odometer progression across recent maintenance records"><polyline points={path} /></svg>
+      <header className="mileage-trace__head">
+        <div><p className="overline">Mileage progression</p><p>Recent service odometer readings</p></div>
+        <div className="mileage-trace__latest"><small>Latest record</small><span><strong>{values.at(-1)?.toLocaleString()}</strong> km</span></div>
+      </header>
+      <div className="mileage-trace__plot"><svg viewBox="0 0 100 44" preserveAspectRatio="none" role="img" aria-label="Odometer progression across recent maintenance records"><polyline points={path} /></svg></div>
       <div className="mileage-trace__labels"><span>{dateLabel(points[0].performedDate, { month: "short", year: "2-digit" })}</span><span>{dateLabel(points.at(-1)!.performedDate, { month: "short", year: "2-digit" })}</span></div>
     </section>
   );

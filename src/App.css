@@ -124,12 +124,17 @@ button { color: inherit; }
 .odometer-readout strong { display: inline-block; margin-top: 12px; font-family: "Doto", ui-monospace, monospace; font-size: 48px; line-height: 1; font-variant-numeric: tabular-nums; }
 .odometer-readout small { margin-left: 8px; color: var(--muted); font-size: 12px; }
 
-.mileage-trace { min-height: 160px; display: grid; grid-template-columns: 160px 1fr; grid-template-rows: 1fr auto; gap: 8px 24px; padding: 24px; }
-.mileage-trace .overline { display: flex; align-items: center; gap: 8px; }
-.mileage-trace strong { font-size: 20px; font-variant-numeric: tabular-nums; }
-.mileage-trace svg { width: 100%; height: 80px; overflow: visible; }
+.mileage-trace { min-height: 200px; display: flex; flex-direction: column; gap: 16px; padding: 24px; }
+.mileage-trace__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.mileage-trace__head p:last-child { margin: 0; color: var(--muted); font-size: 12px; }
+.mileage-trace__latest { display: grid; gap: 4px; text-align: right; }
+.mileage-trace__latest small { color: var(--muted); font-size: 12px; }
+.mileage-trace__latest span { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.mileage-trace__latest strong { color: var(--ink); font-family: "Doto", ui-monospace, monospace; font-size: 24px; font-variant-numeric: tabular-nums; }
+.mileage-trace__plot { height: 72px; }
+.mileage-trace svg { width: 100%; height: 100%; overflow: visible; }
 .mileage-trace polyline { fill: none; stroke: var(--teal); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
-.mileage-trace__labels { grid-column: 2; display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.mileage-trace__labels { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 
 .section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding: 24px; }
 .section-heading h2 { margin: 0 0 8px; font-size: 24px; }
@@ -171,10 +176,13 @@ button { color: inherit; }
 .history-empty { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-right: 24px; }
 
 .machine-form__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 0 24px 24px; }
+.machine-form__fields > *, .form-grid > * { min-width: 0; }
 .machine-form__fields .control-field:first-child { grid-column: 1 / -1; }
-.control-field { display: grid; gap: 8px; color: var(--ink); font-size: 12px; font-weight: 600; }
+.control-field { min-width: 0; display: grid; gap: 8px; color: var(--ink); font-size: 12px; font-weight: 600; }
 .control-field small { color: var(--muted); font-weight: 400; }
-.control-field input, .control-field select, .control-field textarea { width: 100%; min-height: 40px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 4px; outline: none; background: var(--base); color: var(--ink); font-size: 14px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.control-field input, .control-field select, .control-field textarea { width: 100%; min-width: 0; max-width: 100%; min-height: 40px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 4px; outline: none; background: var(--base); color: var(--ink); font-size: 14px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.control-field input[type="date"] { display: block; min-inline-size: 0; max-inline-size: 100%; inline-size: 100%; overflow: hidden; -webkit-appearance: none; appearance: none; }
+.control-field input[type="date"]::-webkit-date-and-time-value { min-width: 0; text-align: left; }
 .control-field textarea { min-height: 96px; resize: vertical; }
 .control-field input:focus, .control-field select:focus, .control-field textarea:focus { border-color: var(--orange); }
 .item-config__head, .item-config__row { display: grid; grid-template-columns: minmax(240px, 1.4fr) minmax(180px, .8fr) 88px; gap: 16px; }
@@ -233,8 +241,8 @@ button { color: inherit; }
   .hero-metric { min-height: 336px; }
   .hero-metric__reading strong { font-size: 48px; }
   .machine-readout h2 { margin-top: 32px; }
-  .mileage-trace { grid-template-columns: 1fr; }
-  .mileage-trace svg, .mileage-trace__labels { grid-column: 1; }
+  .mileage-trace { min-height: 200px; }
+  .mileage-trace__head { align-items: flex-end; }
   .section-heading { align-items: flex-start; }
   .section-heading > div > p:last-child { display: none; }
   .section-heading dl { display: none; }
@@ -247,6 +255,7 @@ button { color: inherit; }
   .history-entry__reading { grid-column: 2; }
   .machine-form__fields, .form-grid, .item-picker { grid-template-columns: 1fr; }
   .machine-form__fields .control-field:first-child { grid-column: auto; }
+  .control-field input, .control-field select, .control-field textarea { font-size: 16px; }
   .item-config__head { display: none; }
   .item-config__row { grid-template-columns: minmax(0, 1fr) 72px; }
   .item-config__row > strong { grid-column: 1; padding-left: 44px; color: var(--muted); font-size: 12px; }
